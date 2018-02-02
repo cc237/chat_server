@@ -1,5 +1,6 @@
 from importlib import import_module
 from logging import StreamHandler, Formatter
+from pathlib import Path
 
 from flask import Flask
 
@@ -42,5 +43,10 @@ def create_app():
 
     # Initialize Flask-SQLAlchemy
     db.init_app(app)
+
+    # Create the DB tables if they do not already exist
+    db_file = Path(app.config['BASE_DIR'] + '/chat_serv.db')
+    if not db_file.exists():
+        db.create_all(app=create_app())
 
     return app
