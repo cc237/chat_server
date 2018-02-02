@@ -1,4 +1,5 @@
 from importlib import import_module
+from logging import StreamHandler, Formatter
 
 from flask import Flask
 
@@ -26,7 +27,18 @@ def create_app():
         import_module(blueprint.import_name)
         app.register_blueprint(blueprint)
 
-    # TODO: configure logging
+    # Set logging to standard out
+    log_handler = StreamHandler()
+
+    # Set the log format
+    formatter = Formatter(app.config['LOG_FORMAT'])
+    log_handler.setFormatter(formatter)
+
+    # Set the log level from the config
+    app.logger.setLevel(app.config['LOG_LEVEL'])
+
+    # Add the steam log handler to the Flask logger
+    app.logger.addHandler(log_handler)
 
     # Initialize Flask-SQLAlchemy
     db.init_app(app)
