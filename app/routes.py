@@ -170,6 +170,6 @@ def get_msg():
 def health_check():
     """Returns a simple JSON response if the app is online."""
 
-    app.logger.debug('API call to /show_pending')
+    app.logger.debug('API call to /health_check')
 
     return jsonify(dict(status='success')), 200
