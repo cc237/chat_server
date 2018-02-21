@@ -1,15 +1,19 @@
 """All SQL Alchemy models are defined here."""
 
+from sqlalchemy import UniqueConstraint
+
 from app.extensions import db
 
 
 class Friend(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    friend_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    user = db.relationship(
-        'User', back_populates='friends', foreign_keys=[user_id]
-    )
+    """Friend table model"""
+
+    id = db.Column(db.Integer(), primary_key=True)
+    user_id = db.Column(db.String(32), db.ForeignKey('user.id'))
+    friend_name = db.Column(db.String(32))
+    user = db.relationship('User', back_populates='friends')
+
+    __table_args__ = (UniqueConstraint('user_id', 'friend_name'), {})
 
 
 class User(db.Model):
@@ -19,7 +23,7 @@ class User(db.Model):
     username = db.Column(db.String(32), unique=True, nullable=False)
     pw_hash = db.Column(db.Binary(64), nullable=False)
     friends = db.relationship(
-        'Friend', back_populates='user', foreign_keys=[Friend.friend_id]
+        'Friend', back_populates='user', cascade='all, delete-orphan'
     )
 
 

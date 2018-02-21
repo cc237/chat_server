@@ -5,13 +5,144 @@ from sqlalchemy.sql import exists
 
 from app.blueprints import bp
 from app.extensions import db
-from app.models import PendingMessage, User
+from app.models import Friend, PendingMessage, User
 
 
-# TODO: Need to have "friends list" with add and remove
 # TODO: Need to have voice and image messaging
 # TODO: Write generic function to validate the request parameters
 # TODO: Remove the "show_pending" route
+
+
+@bp.route('/get_friends', methods=['POST'])
+def get_friends():
+    """Returns all friends of a given user."""
+
+    # Return a failure for an invalid request
+    try:
+        un = request.form['un']
+    except Exception as e:
+        return jsonify(
+            dict(status='failure', friends_found=False, reason=str(e))
+        ), 400
+
+    # Query for the user
+    user = db.session.query(User).filter(User.username == un).first()
+
+    if user:
+        return jsonify(
+            dict(status='success', users=[f.friend_name for f in user.friends])
+        ), 200
+    else:
+        return jsonify(
+            dict(status='failure', friends_found=False, reason='invalid user')
+        ), 401
+
+
+@bp.route('/add_friend', methods=['POST'])
+def add_friend():
+    """Add a friend for a given user."""
+
+    # Return a failure for an invalid request
+    try:
+        un = request.form['un']
+        friend_un = request.form['friend_un']
+    except Exception as e:
+        return jsonify(
+            dict(status='failure', friend_added=False, reason=str(e))
+        ), 400
+
+    # Query for the user and the friend
+    user = db.session.query(User).filter(User.username == un).first()
+    friend = db.session.query(User).filter(User.username == friend_un).first()
+
+    # Add the friend if both users are valid and the friend doesn't exist
+    if user and friend:
+        friendship = db.session.query(Friend).filter(
+            and_(
+                Friend.user_id == user.id,
+                Friend.friend_name == friend_un
+            )
+        ).first()
+        if not friendship:
+            db.session.add(Friend(user_id=user.id, friend_name=friend_un))
+            db.session.commit()
+            return jsonify(
+                dict(
+                    status='success',
+                    friend_added=True,
+                    reason='valid new friend'
+                )
+            ), 200
+        else:
+            return jsonify(
+                dict(
+                    status='failure',
+                    friend_added=False,
+                    reason='friendship already exists'
+                )
+            ), 403
+    else:
+        return jsonify(
+            dict(
+                status='failure',
+                friend_added=False,
+                reason='user or friend not found'
+            )
+        ), 403
+
+
+@bp.route('/remove_friend', methods=['POST'])
+def remove_friend():
+    """Remove a friend for a given user."""
+
+    # Return a failure for an invalid request
+    try:
+        un = request.form['un']
+        friend_un = request.form['friend_un']
+    except Exception as e:
+        return jsonify(
+            dict(status='failure', friend_removed=False, reason=str(e))
+        ), 400
+
+    # Query for the user and the friend
+    user = db.session.query(User).filter(User.username == un).first()
+    friend = db.session.query(User).filter(User.username == friend_un).first()
+
+    # Remove the friend if both users are valid and the friend exists
+    if user and friend:
+        friendship = db.session.query(Friend).filter(
+            and_(
+                Friend.user_id == user.id,
+                Friend.friend_name == friend_un
+            )
+        ).first()
+        if friendship:
+            user.friends.remove(friendship)
+            db.session.commit()
+            return jsonify(
+                dict(
+                    status='success',
+                    friend_removed=True,
+                    reason='valid friend removed'
+                )
+            ), 200
+        else:
+            return jsonify(
+                dict(
+                    status='failure',
+                    friend_removed=False,
+                    reason='friend not found'
+                )
+            ), 403
+    else:
+        return jsonify(
+            dict(
+                status='failure',
+                friend_removed=False,
+                reason='user or friend not found'
+            )
+        ), 403
+
 
 @bp.route('/show_pending', methods=['GET'])
 def show_pending():
@@ -80,8 +211,8 @@ def register():
             dict(status='failure', registered=False, reason=str(e))
         ), 400
 
-    # Check if the user already exists and register them if they do not already
-    # exist. Otherwise, return a failure indicating that the user exists.
+    # Check if the user already exists. If not, register them. Otherwise,
+    # return a failure indicating that the user exists.
     user_found = db.session.query(exists().where(User.username == un)).scalar()
     if not user_found:
         db.session.add(
@@ -156,6 +287,7 @@ def get_msg():
             )
         )
         msgs = [row.message for row in pending]
+
         # Delete the messages after reading them
         for row in pending:
             db.session.delete(row)
