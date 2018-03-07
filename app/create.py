@@ -46,7 +46,7 @@ def create_app():
 
     # Create the DB tables if they do not already exist
     db_file = Path(app.config['BASE_DIR'] + '/chat_serv.db')
-    if db_file.exists():
+    if not db_file.exists():
         with app.app_context():
             db.create_all()
 
