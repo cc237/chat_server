@@ -32,3 +32,12 @@ class PendingMessage(db.Model):
     from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     message = db.Column(db.String(256), nullable=False)
+
+
+class PendingFile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    file_type = db.Column(db.String(8), nullable=False)
+    file_name = db.Column(db.String(512), nullable=False)
+    file_data = db.Column(db.LargeBinary, nullable=False)

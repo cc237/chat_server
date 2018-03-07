@@ -5,12 +5,55 @@ from sqlalchemy.sql import exists
 
 from app.blueprints import bp
 from app.extensions import db
-from app.models import Friend, PendingMessage, User
+from app.models import Friend, PendingFile, PendingMessage, User
 
 
-# TODO: Need to have voice and image messaging
 # TODO: Write generic function to validate the request parameters
 # TODO: Remove the "show_pending" route
+
+
+@bp.route('/send_file', methods=['POST'])
+def send_img():
+    """Sends an audio or image file to a given user."""
+
+    # if request.form['file_type'] == 'AUDIO':
+    #     with open('audio.mp3', 'wb') as f:
+    #         f.write(urlsafe_b64decode(request.form['file_data']))
+    # elif request.form['file_type'] == 'IMAGE':
+    #     with open('image.jpeg', 'wb') as f:
+    #         f.write(urlsafe_b64decode(request.form['file_data']))
+
+    # Return a failure for an invalid request
+    try:
+        to_un = request.form['to_un']
+        from_un = request.form['from_un']
+        file_type = request.form['file_type']
+        file_name = request.form['file_name']
+        file_data = request.form['file_data']
+    except Exception as e:
+        return jsonify(
+            dict(status='failure', reason=str(e))
+        ), 400
+
+    # Query for the sending and receiving users
+    to_user = db.session.query(User).filter(User.username == to_un).first()
+    from_user = db.session.query(User).filter(User.username == from_un).first()
+
+    # Write the message to the DB if both users exist
+    if to_user and from_user:
+        db.session.add(
+            PendingFile(
+                to_user_id=to_user.id,
+                from_user_id=from_user.id,
+                file_type=file_type,
+                file_name=file_name,
+                file_data=file_data
+            )
+        )
+        db.session.commit()
+        return jsonify(dict(status='success')), 200
+    else:
+        return jsonify(dict(status='failure', reason='user not found')), 403
 
 
 @bp.route('/get_friends', methods=['POST'])
@@ -151,8 +194,13 @@ def show_pending():
     app.logger.debug('API call to /show_pending')
 
     all_msgs = PendingMessage.query.all()
+    all_files = PendingFile.query.all()
     return jsonify(
-        dict(status='success', msgs=[msg.message for msg in all_msgs])
+        dict(
+            status='success',
+            msgs=[msg.message for msg in all_msgs],
+            files=[file.file_name for file in all_files]
+        )
     ), 200
 
 
@@ -261,9 +309,9 @@ def send_msg():
         return jsonify(dict(status='failure', reason='user not found')), 403
 
 
-@bp.route('/get_msg', methods=['POST'])
-def get_msg():
-    """Get text messages from a given user."""
+@bp.route('/get_msgs', methods=['POST'])
+def get_msgs():
+    """Get text messages and files from a given user."""
 
     # Return a failure for an invalid request
     try:
@@ -280,20 +328,39 @@ def get_msg():
 
     # Read the pending messages from the DB if both users exist
     if to_user and from_user:
-        pending = db.session.query(PendingMessage).filter(
+        pending_msgs = db.session.query(PendingMessage).filter(
             and_(
                 PendingMessage.from_user_id == from_user.id,
                 PendingMessage.to_user_id == to_user.id
             )
         )
-        msgs = [row.message for row in pending]
+        msgs = [row.message for row in pending_msgs]
 
-        # Delete the messages after reading them
-        for row in pending:
+        pending_files = db.session.query(PendingFile).filter(
+            and_(
+                PendingMessage.from_user_id == from_user.id,
+                PendingMessage.to_user_id == to_user.id
+            )
+        )
+        files = [
+            {
+                'file_name': row.file_name,
+                'file_type': row.file_type,
+                'file_data': row.file_data
+            }
+            for row in pending_files
+        ]
+
+        # Delete the messages and files after reading them
+        for row in pending_msgs:
+            db.session.delete(row)
+        for row in pending_files:
             db.session.delete(row)
         db.session.commit()
 
-        return jsonify(dict(status='success', msgs=msgs)), 200
+        return jsonify(
+            dict(status='success', msgs=msgs, files=files)
+        ), 200
     else:
         return jsonify(dict(status='failure', reason='user not found')), 403
 
