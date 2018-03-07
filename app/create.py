@@ -1,8 +1,8 @@
 from importlib import import_module
 from logging import StreamHandler, Formatter
-from pathlib import Path
 
 from flask import Flask
+from sqlalchemy.exc import OperationalError
 
 from app.blueprints import blueprints
 from app.extensions import db
@@ -45,9 +45,10 @@ def create_app():
     db.init_app(app)
 
     # Create the DB tables if they do not already exist
-    db_file = Path(app.config['BASE_DIR'] + '/chat_serv.db')
-    if not db_file.exists():
-        with app.app_context():
+    with app.app_context():
+        try:
             db.create_all()
+        except OperationalError:
+            pass
 
     return app
