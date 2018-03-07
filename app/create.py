@@ -1,6 +1,7 @@
 from importlib import import_module
 from logging import StreamHandler, Formatter
 from pathlib import Path
+from os import remove
 
 from flask import Flask
 
@@ -46,7 +47,8 @@ def create_app():
 
     # Create the DB tables if they do not already exist
     db_file = Path(app.config['BASE_DIR'] + '/chat_serv.db')
-    if not db_file.exists():
+    if db_file.exists():
+        remove(db_file)
         with app.app_context():
             db.create_all()
 
