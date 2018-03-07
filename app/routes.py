@@ -338,8 +338,8 @@ def get_msgs():
 
         pending_files = db.session.query(PendingFile).filter(
             and_(
-                PendingMessage.from_user_id == from_user.id,
-                PendingMessage.to_user_id == to_user.id
+                PendingFile.from_user_id == from_user.id,
+                PendingFile.to_user_id == to_user.id
             )
         )
         files = [
