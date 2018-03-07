@@ -47,7 +47,7 @@ def send_img():
                 from_user_id=from_user.id,
                 file_type=file_type,
                 file_name=file_name,
-                file_data=file_data
+                file_data=file_data.encode('utf-8')
             )
         )
         db.session.commit()
@@ -346,7 +346,7 @@ def get_msgs():
             {
                 'file_name': row.file_name,
                 'file_type': row.file_type,
-                'file_data': row.file_data
+                'file_data': row.file_data.decode('utf-8')
             }
             for row in pending_files
         ]
